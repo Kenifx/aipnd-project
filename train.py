@@ -118,16 +118,20 @@ def build_classifier(model, args):
    ## Freeze parameters
     for param in model.parameters():
         param.requires_grad = False
-
+    #define hidden units
     if args.hidden_units:
         hidden_units = int(args.hidden_units)
     else:
         hidden_units = 512
         
     hidden_units_fc2 = int(hidden_units / 4)
-
+    
+    #define input variable for in_features
+    
+    input_size = model.classifier[0].in_features
+    
     classifier = nn.Sequential(OrderedDict([
-                              ('fc1', nn.Linear(25088, hidden_units)),
+                              ('fc1', nn.Linear(input_size, hidden_units)),
                               ('relu1', nn.ReLU()),
                               ('fc2', nn.Linear(hidden_units, hidden_units_fc2)),
                               ('relu2', nn.ReLU()),
@@ -152,8 +156,8 @@ def print_params(model, args):
 def train(dataloaders,model, criterion, optimizer, args):
     
 
-    #GPU mode
-    if args.gpu:
+    #GPU mode + check gpu Availability
+    if args.gpu and torch.cuda.is_available():
         device = 'cuda'
     else:
         device = 'cpu'
@@ -194,7 +198,7 @@ def train(dataloaders,model, criterion, optimizer, args):
                 accuracy = 0
                 test_loss = 0
                 with torch.no_grad():
-                    for ii, (images, labels) in enumerate(dataloaders['test']):
+                    for ii, (images, labels) in enumerate(dataloaders['valid']):
                         #images = images.resize_(images.size()[0], 784)
                         # Set volatile to True so we don't save the history
                         inputs = Variable(images)
@@ -217,8 +221,8 @@ def train(dataloaders,model, criterion, optimizer, args):
 
                 print("Epoch: {}/{}.. ".format(e+1, epochs),
                       "Training Loss: {:.3f}.. ".format(running_loss/print_every),
-                      "Test Loss: {:.3f}.. ".format(test_loss/len(dataloaders['test'])),
-                      "Test Accuracy: {:.3f}".format(accuracy/len(dataloaders['test'])))
+                      "Test Loss: {:.3f}.. ".format(test_loss/len(dataloaders['valid'])),
+                      "Test Accuracy: {:.3f}".format(accuracy/len(dataloaders['valid'])))
 
                 running_loss = 0
 
@@ -230,8 +234,11 @@ def train(dataloaders,model, criterion, optimizer, args):
 
 
 def test(dataloaders, model, criterion, args):
-    
-    model.to('cuda') 
+    #check gpu Availability
+    if torch.cuda.is_available():
+        model.to('cuda') 
+    else:
+        model.to('cpu')
     model.eval()
     accuracy = 0
     test_loss = 0
@@ -280,6 +287,8 @@ def checkpoint(model, dataloaders, optimizer, args):
         save_dir = args.save_dir
     else:
         save_dir = '.' #current directory
+        
+    
  
     checkpoint_path = save_dir + '/checkpoint.pth'
     torch.save(checkpoint, checkpoint_path)

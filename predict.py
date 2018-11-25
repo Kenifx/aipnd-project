@@ -70,8 +70,8 @@ def get_args():
 def load(checkpoint, args):
     checkpoint = torch.load(checkpoint) 
     
-    #GPU or CPU mode
-    if args.gpu:
+    #GPU or CPU mode + check gpu availability
+    if args.gpu and  torch.cuda.is_available():
         device = 'cuda'
     else:
         device = 'cpu'
@@ -86,11 +86,16 @@ def load(checkpoint, args):
     
     hidden_units = checkpoint['hidden_units']
     hidden_units_fc2 = int(hidden_units / 4)
-
+    
+    #make input size as a variable instead of hard coded value
+    input_size = model.classifier[0].in_features
+    
     print("Building Classifer ")
     
+    
+    
     classifier = nn.Sequential(OrderedDict([
-                              ('fc1', nn.Linear(25088, hidden_units)),
+                              ('fc1', nn.Linear(input_size, hidden_units)),
                               ('relu1', nn.ReLU()),
                               ('fc2', nn.Linear(hidden_units, hidden_units_fc2)),
                               ('relu2', nn.ReLU()),
@@ -164,6 +169,9 @@ def map_label(args, probs, classes):
         cat_to_name = json.load(f)
     
     labels = []
+    '''for i in classes:
+        s = str(i + 1)
+        labels.append(cat_to_name[s])'''
         
     for class_idx in classes:
         labels.append(cat_to_name[class_idx])
