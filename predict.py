@@ -1,17 +1,13 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import time
-
 import torch
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
 from torchvision import datasets, transforms, models
 
-#Other imports
 import json
 from PIL import Image
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 from collections import OrderedDict
@@ -48,7 +44,12 @@ def main():
     predict(input_path, model, topk=3)
     
     #mapping
-    probs, classes = predict(input_path, model, top_k=3)  
+    if args.top_k:
+        topk = ints(args.top_k)
+    else:
+        topk = 3
+        
+    probs, classes = predict(input_path, model, topk=3)  
     map_label(args, probs, classes)
 
 
@@ -66,50 +67,41 @@ def get_args():
     return parser.parse_args()
 
 
-'''
-if args['top_k']:
-	top_k = int(args['top_k'])
-else:
-	top_k = 3
-	
-if args['category_names']:
-	category_names = args['category_names']
-else:
-	category_names = 'cat_to_name.json'
-'''
-
-
-
 def load(checkpoint, args):
-    checkpoint = torch.load(checkpoint)   
+    checkpoint = torch.load(checkpoint) 
     
+    #GPU or CPU mode
     if args.gpu:
         device = 'cuda'
     else:
         device = 'cpu'
-    
+          
+    #training model
     if checkpoint['arch'] == 'vgg13':
         model = models.vgg13(pretrained=True)
     else:
         model = models.vgg16(pretrained=True)
     
     model.class_to_idx = checkpoint['class_to_idx']
-
-
+    
     hidden_units = checkpoint['hidden_units']
     hidden_units_fc2 = int(hidden_units / 4)
 
+    print("Building Classifer ")
+    
     classifier = nn.Sequential(OrderedDict([
-        ('fc1', nn.Linear(25088, hidden_units)),
-        ('relu', nn.ReLU()),
-        ('fc2', nn.Linear(hidden_units, hidden_units_fc2)),
-        ('relu', nn.ReLU()),
-        ('fc3', nn.Linear(hidden_units_fc2, 102)),
-        ('output', nn.LogSoftmax(dim=1))
-        ]))
+                              ('fc1', nn.Linear(25088, hidden_units)),
+                              ('relu1', nn.ReLU()),
+                              ('fc2', nn.Linear(hidden_units, hidden_units_fc2)),
+                              ('relu2', nn.ReLU()),
+                              ('fc3', nn.Linear(hidden_units_fc2, 102)),
+                              ('output', nn.LogSoftmax(dim=1))
+                              ]))
 
     model.classifier = classifier
-
+    
+    
+    
     model.load_state_dict(checkpoint['state_dict'])
     
     model.to(device)
@@ -167,25 +159,21 @@ def map_label(args, probs, classes):
         category_names = args.category_names
     else:
         category_names = 'cat_to_name.json'
-        
-
-    
+           
     with open(category_names, 'r') as f:
         cat_to_name = json.load(f)
     
     labels = []
-    for i in classes:
-        s = str(i + 1)
-        labels.append(cat_to_name[s])
+        
+    for class_idx in classes:
+        labels.append(cat_to_name[class_idx])
 
     df = pd.DataFrame({'Classes':classes, 'Prob':probs, 'Labels':labels})
 
-    tk = df.sort_values(by=['Prob'], ascending=1)
+    top = df.sort_values(by=['Prob'], ascending=0)
 
-    print("Top " + str(top_k) + " possible labels for the image:")
-    print(str(tk))
-    
-
+    print("Top " + str(len(classes)) + " possible labels for the image:")
+    print(str(top))
 
 if __name__ == '__main__':
     main()

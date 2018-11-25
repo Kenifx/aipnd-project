@@ -55,7 +55,7 @@ def get_args():
     parser.add_argument('--gpu', dest='gpu', default=False, action='store_true', help='train model on gpu model')
     parser.add_argument('--epochs', dest='epochs', default=20,type=int, help='epoach numbers to run (default value =20)')
     parser.add_argument( '--learning_rate', dest='lr', default=0.01,type=float, help='learning rate (default value = 0.01)')
-    parser.add_argument('--hidden_units', help='Hidden units argument for training (default value = 1024)', required=False)
+    parser.add_argument('--hidden_units', default =512, help='Hidden units argument for training (default value = 512)', required=False)
     
 
     return parser.parse_args()
@@ -122,7 +122,7 @@ def build_classifier(model, args):
     if args.hidden_units:
         hidden_units = int(args.hidden_units)
     else:
-        hidden_units = 1024
+        hidden_units = 512
         
     hidden_units_fc2 = int(hidden_units / 4)
 
